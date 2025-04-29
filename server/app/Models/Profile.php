@@ -31,7 +31,9 @@ class Profile extends Model
         'gambarKtp',
         'kodeBank',
         'noRekening',
+        'account_name'
     ];
+
 
     public function user()
     {

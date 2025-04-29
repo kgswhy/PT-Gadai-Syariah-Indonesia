@@ -176,3 +176,100 @@ For every request that requires authentication, include the following in the hea
 
 ```http
 Authorization: Bearer <your_jwt_token>
+```
+
+## Service 
+
+
+ #### **POST /api/wilayah/provinsi**
+ - **Description**:  Retrieve a list of all provinces from the provinsi.json file.
+- **Authentication**: Requires a valid JWT token.
+- **Request Body**:
+    - **200 OK**:
+    ```json
+    {
+  "status": true,
+  "data": [ ... ]
+  }
+    ```
+- **Response**:
+    - **404 Not Found**:
+    ```json
+    {
+      "status": "success",
+      "message": "Profile updated successfully",
+      "data": {
+        "nik": "1234567890",
+        "nama": "John Doe",
+        "tempat_lahir": "City",
+        "tanggal_lahir": "1990-01-01",
+        "jenis_kelamin": "Male",
+        "agama": "Islam",
+        "status_pekerjaan": "Employed"
+      }
+    }
+    ```
+    - **400 Bad Request**: If validation or bank inquiry fails.
+    - **401 Unauthorized**: If the token is invalid or expired.
+
+Description:
+Response:
+200 OK
+
+{
+  "status": false,
+  "message": "Provinsi data not found."
+}
+📍 POST /api/wilayah/kabupaten
+Description: Retrieve a list of regencies (kabupaten) by province ID.
+Request Body:
+{
+  "id": "PROVINCE_ID"
+}
+Response:
+200 OK
+{
+  "status": true,
+  "data": [ ... ]
+}
+422 Unprocessable Entity
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "id": [
+      "The id field is required."
+    ]
+  }
+}
+404 Not Found
+{
+  "status": false,
+  "message": "Kabupaten data not found for the given ID."
+}
+📍 POST /api/wilayah/kecamatan
+Description: Retrieve a list of districts (kecamatan) by regency (kabupaten) ID.
+Request Body:
+{
+  "id": "REGENCY_ID"
+}
+Response: Same structure as the /kabupaten endpoint with adjusted messages.
+📍 POST /api/wilayah/kelurahan
+Description: Retrieve a list of sub-districts (kelurahan) by district (kecamatan) ID.
+Request Body:
+{
+  "id": "DISTRICT_ID"
+}
+Response: Same structure as the /kabupaten endpoint with adjusted messages.
+📍 POST /api/wilayah/kabupaten/all
+Description: Retrieve all available regency data from the kabupaten/ directory.
+Response:
+200 OK
+{
+  "status": true,
+  "data": [ ... ]
+}
+404 Not Found
+{
+  "status": false,
+  "message": "No kabupaten data found."
+}

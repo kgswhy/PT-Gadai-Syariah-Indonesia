@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\UpdateProfileRequest;
-use App\Http\Resources\ProfileResource;
+use Illuminate\Http\Request;
 use App\Models\Profile;
-use App\Services\BankApiService;
+use Validator;
+use app\Rules\Base64Image;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Services\BankApiService;
 
 class ProfileController extends Controller
 {
@@ -18,37 +20,101 @@ class ProfileController extends Controller
         $this->bankApiService = $bankApiService;
     }
 
-    public function updateProfile(UpdateProfileRequest $request)
+    public function updateProfile(Request $request)
     {
         $user = JWTAuth::parseToken()->authenticate();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'nik' => 'required|unique:profiles,nik,' . $user->id . ',user_id',
+            'nama' => 'required|string|max:255',
+            'tempatLahir' => 'required|string|max:255',
+            'tanggalLahir' => 'required|date',
+            'jenisKelamin' => 'required|in:L,P',
+            'golDarah' => 'nullable|string|max:3',
+            'alamat' => 'required|string|max:255',
+            'rt' => 'required|string|max:3',
+            'rw' => 'required|string|max:3',
+            'kel' => 'required|string|max:255',
+            'desa' => 'nullable|string|max:255',
+            'kecamatan' => 'required|string|max:255',
+            'kabupaten' => 'required|string|max:255',
+            'provinsi' => 'required|string|max:255',
+            'agama' => 'required|string|max:255',
+            'statusPekerjaan' => 'nullable|string|max:255',
+            'statusPerkawinan' => 'required|string|max:255',
+            'pekerjaan' => 'required|string|max:255',
+            'kewarganegaraan' => 'required|string|max:255',
+            'berlakuHingga' => 'nullable|date',
+            'gambarKtp' => 'nullable|string',
+            'kodeBank' => 'nullable|string|max:10',
+            'noRekening' => 'nullable|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
 
         $profile = Profile::firstOrNew(['user_id' => $user->id]);
 
         $profile->fill([
             'nik' => $request->nik,
             'nama' => $request->nama,
-            'tempat_lahir' => $request->tempatLahir,
-            'tanggal_lahir' => $request->tanggalLahir,
-            'jenis_kelamin' => $request->jenisKelamin,
-            'gol_darah' => $request->golDarah,
+            'tempatLahir' => $request->tempatLahir,
+            'tanggalLahir' => $request->tanggalLahir,
+            'jenisKelamin' => $request->jenisKelamin,
+            'golDarah' => $request->golDarah,
             'alamat' => $request->alamat,
             'rt' => $request->rt,
             'rw' => $request->rw,
             'kel' => $request->kel,
-            'desa' => $request->kel, // Sementara desa = kel
+            'desa' => $request->kel,
             'kecamatan' => $request->kecamatan,
             'kabupaten' => $request->kabupaten,
             'provinsi' => $request->provinsi,
             'agama' => $request->agama,
-            'status_pekerjaan' => $request->statusPekerjaan,
-            'status_perkawinan' => $request->statusPerkawinan,
+            'statusPekerjaan' => $request->statusPekerjaan,
+            'statusPerkawinan' => $request->statusPerkawinan,
             'pekerjaan' => $request->pekerjaan,
             'kewarganegaraan' => $request->kewarganegaraan,
-            'berlaku_hingga' => $request->berlakuHingga,
-            'kode_bank' => $request->kodeBank,
-            'no_rekening' => $request->noRekening,
+            'berlakuHingga' => $request->berlakuHingga,
+            'kodeBank' => $request->kodeBank,
+            'noRekening' => $request->noRekening,
         ]);
 
+
+        if ($request->filled('gambarKtp')) {
+            $base64Image = $request->gambarKtp;
+
+            // Validasi format base64 gambar
+            if (preg_match('/^data:image\/(\w+);base64,/', $base64Image, $type)) {
+                $type = strtolower($type[1]); // jpg, png, gif, etc.
+
+                if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    return response()->json(['status' => 'error', 'message' => 'Unsupported image format.'], 400);
+                }
+
+                // Opsional: validasi apakah base64 bisa didecode (bukan disimpan, hanya cek validitas)
+                $data = substr($base64Image, strpos($base64Image, ',') + 1);
+                if (base64_decode($data, true) === false) {
+                    return response()->json(['status' => 'error', 'message' => 'Invalid base64 encoding.'], 400);
+                }
+
+                // Simpan base64-nya ke database
+                $profile->gambarKtp = $base64Image;
+            } else {
+                return response()->json(['status' => 'error', 'message' => 'Invalid base64 image format.'], 400);
+            }
+        }
+
+
+        // Inquiry ke bank jika kodeBank dan noRekening terisi
         if ($request->filled('kodeBank') && $request->filled('noRekening')) {
             $inquiry = $this->bankApiService->inquiryAccount($request->kodeBank, $request->noRekening);
 
@@ -67,7 +133,7 @@ class ProfileController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Profile updated successfully',
-            'data' => new ProfileResource($profile),
+            'data' => $profile,
         ]);
     }
 
@@ -90,7 +156,7 @@ class ProfileController extends Controller
                 'message' => 'Profile info retrieved successfully.',
                 'data' => [
                     'user' => $user,
-                    'profile' => new ProfileResource($profile),
+                    'profile' => $profile,
                 ],
             ], 200);
         } catch (\Throwable $th) {
