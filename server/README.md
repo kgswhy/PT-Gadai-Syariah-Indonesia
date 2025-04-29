@@ -1,66 +1,179 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+---
 
-## About Laravel
+## Authentication & Authorization
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Authentication Method
+This API uses **JWT (JSON Web Token)** for authentication. Every request that requires authentication must include the token in the `Authorization` header.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Endpoints
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+#### **POST /api/register**
+- **Description**: Register a new user.
+- **Request Body**:
+    ```json
+    {
+      "username": "string",
+      "email": "string",
+      "password": "string",
+      "nik": "string"  // Optional
+    }
+    ```
+- **Response**:
+    - **200 OK**:
+    ```json
+    {
+      "status": true,
+      "message": "User created successfully",
+      "token": "JWT_Token_String"
+    }
+    ```
+    - **422 Unprocessable Entity**: If validation errors occur.
+    - **500 Internal Server Error**: If an error occurs during registration.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+#### **POST /api/login**
+- **Description**: Login a user and obtain a JWT token.
+- **Request Body**:
+    ```json
+    {
+      "username": "string",
+      "password": "string"
+    }
+    ```
+- **Response**:
+    - **200 OK**:
+    ```json
+    {
+      "status": true,
+      "message": "Login successful",
+      "token": "JWT_Token_String"
+    }
+    ```
+    - **401 Unauthorized**: If invalid credentials are provided.
+    - **422 Unprocessable Entity**: If validation errors occur.
+    - **500 Internal Server Error**: If an error occurs during login.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+#### **POST /api/logout**
+- **Description**: Logs out the user and invalidates the JWT token.
+- **Authentication**: Requires a valid JWT token.
+- **Response**:
+    - **200 OK**:
+    ```json
+    {
+      "status": true,
+      "message": "Successfully logged out"
+    }
+    ```
+    - **500 Internal Server Error**: If an error occurs during logout.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Protected Routes (Requires JWT Authentication)
 
-### Premium Partners
+These routes are protected and require a valid JWT token in the `Authorization` header.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+#### **GET /api/get-profile**
+- **Description**: Retrieve the profile information of the currently authenticated user.
+- **Authentication**: Requires a valid JWT token.
+- **Response**:
+    - **200 OK**:
+    ```json
+    {
+      "status": true,
+      "message": "Profile info retrieved successfully.",
+      "data": {
+        "user": {
+          "id": 1,
+          "username": "John Doe",
+          "email": "john@example.com"
+        },
+        "profile": {
+          "nik": "1234567890",
+          "nama": "John Doe",
+          "tempat_lahir": "City",
+          "tanggal_lahir": "1990-01-01",
+          "jenis_kelamin": "Male",
+          "agama": "Islam",
+          "status_pekerjaan": "Employed"
+        }
+      }
+    }
+    ```
+    - **401 Unauthorized**: If the token is invalid or expired.
+    - **404 Not Found**: If the user profile does not exist.
 
-## Contributing
+#### **PUT /api/update-profile**
+- **Description**: Update the profile information of the currently authenticated user.
+- **Authentication**: Requires a valid JWT token.
+- **Request Body**:
+    ```json
+    {
+      "nik": "string",
+      "nama": "string",
+      "tempatLahir": "string",
+      "tanggalLahir": "date",
+      "jenisKelamin": "string",
+      "golDarah": "string",
+      "alamat": "string",
+      "rt": "string",
+      "rw": "string",
+      "kel": "string",
+      "desa": "string",
+      "kecamatan": "string",
+      "kabupaten": "string",
+      "provinsi": "string",
+      "agama": "string",
+      "statusPekerjaan": "string",
+      "statusPerkawinan": "string",
+      "pekerjaan": "string",
+      "kewarganegaraan": "string",
+      "berlakuHingga": "date",
+      "kodeBank": "string",
+      "noRekening": "string"
+    }
+    ```
+- **Response**:
+    - **200 OK**:
+    ```json
+    {
+      "status": "success",
+      "message": "Profile updated successfully",
+      "data": {
+        "nik": "1234567890",
+        "nama": "John Doe",
+        "tempat_lahir": "City",
+        "tanggal_lahir": "1990-01-01",
+        "jenis_kelamin": "Male",
+        "agama": "Islam",
+        "status_pekerjaan": "Employed"
+      }
+    }
+    ```
+    - **400 Bad Request**: If validation or bank inquiry fails.
+    - **401 Unauthorized**: If the token is invalid or expired.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## Response Codes
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- **200 OK**: Request was successful.
+- **201 Created**: Resource successfully created.
+- **400 Bad Request**: Invalid input or request data.
+- **401 Unauthorized**: Invalid or missing authentication token.
+- **422 Unprocessable Entity**: Validation failed.
+- **500 Internal Server Error**: Server encountered an error while processing the request.
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Authorization Header Format
+
+For every request that requires authentication, include the following in the header:
+
+```http
+Authorization: Bearer <your_jwt_token>
