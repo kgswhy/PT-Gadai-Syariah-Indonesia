@@ -1,275 +1,110 @@
+# 📘 API Specification
+
+Dokumentasi ini berisi spesifikasi endpoint untuk layanan API Anda. Endpoint dibagi ke dalam rute publik, rute yang membutuhkan autentikasi JWT, serta rute khusus untuk Bank dan data Wilayah.
 
 ---
 
-## Authentication & Authorization
+## 🔒 Authentication
 
-### Authentication Method
-This API uses **JWT (JSON Web Token)** for authentication. Every request that requires authentication must include the token in the `Authorization` header.
-
-### Endpoints
-
-#### **POST /api/register**
-- **Description**: Register a new user.
-- **Request Body**:
-    ```json
-    {
-      "username": "string",
-      "email": "string",
-      "password": "string",
-    }
-    ```
-- **Response**:
-    - **200 OK**:
-    ```json
-    {
-      "status": true,
-      "message": "User created successfully",
-      "token": "JWT_Token_String"
-    }
-    ```
-    - **422 Unprocessable Entity**: If validation errors occur.
-    - **500 Internal Server Error**: If an error occurs during registration.
+- **Middleware**: `auth.jwt`
+- Digunakan untuk melindungi endpoint yang membutuhkan user yang sudah login dan memiliki token JWT.
 
 ---
 
-#### **POST /api/login**
-- **Description**: Login a user and obtain a JWT token.
-- **Request Body**:
-    ```json
-    {
-      "username": "string",
-      "password": "string"
-    }
-    ```
-- **Response**:
-    - **200 OK**:
-    ```json
-    {
-      "status": true,
-      "message": "Login successful",
-      "token": "JWT_Token_String"
-    }
-    ```
-    - **401 Unauthorized**: If invalid credentials are provided.
-    - **422 Unprocessable Entity**: If validation errors occur.
-    - **500 Internal Server Error**: If an error occurs during login.
+## 🔓 Public Routes
+
+### POST `/register`
+
+- **Deskripsi**: Mendaftarkan user baru.
+- **Auth**: ❌ Public
 
 ---
 
-#### **POST /api/logout**
-- **Description**: Logs out the user and invalidates the JWT token.
-- **Authentication**: Requires a valid JWT token.
-- **Response**:
-    - **200 OK**:
-    ```json
-    {
-      "status": true,
-      "message": "Successfully logged out"
-    }
-    ```
-    - **500 Internal Server Error**: If an error occurs during logout.
+### POST `/login`
+
+- **Deskripsi**: Login dan mendapatkan JWT token.
+- **Auth**: ❌ Public
+- **Named Route**: `login`
 
 ---
 
-## Protected Routes (Requires JWT Authentication)
+## 🔐 Protected Routes (JWT)
 
-These routes are protected and require a valid JWT token in the `Authorization` header.
+> Semua endpoint di bawah memerlukan autentikasi menggunakan token JWT.
 
-#### **GET /api/get-profile**
-- **Description**: Retrieve the profile information of the currently authenticated user.
-- **Authentication**: Requires a valid JWT token.
-- **Response**:
-    - **200 OK**:
-    ```json
-    {
-      "status": true,
-      "message": "Profile info retrieved successfully.",
-      "data": {
-        "user": {
-          "id": 1,
-          "username": "John Doe",
-          "email": "john@example.com"
-        },
-        "profile": {
-          "nik": "1234567890",
-          "nama": "John Doe",
-          "tempat_lahir": "City",
-          "tanggal_lahir": "1990-01-01",
-          "jenis_kelamin": "Male",
-          "agama": "Islam",
-          "status_pekerjaan": "Employed"
-        }
-      }
-    }
-    ```
-    - **401 Unauthorized**: If the token is invalid or expired.
-    - **404 Not Found**: If the user profile does not exist.
+### POST `/logout`
 
-#### **PUT /api/update-profile**
-- **Description**: Update the profile information of the currently authenticated user.
-- **Authentication**: Requires a valid JWT token.
-- **Request Body**:
-    ```json
-    {
-      "nik": "string",
-      "nama": "string",
-      "tempatLahir": "string",
-      "tanggalLahir": "date",
-      "jenisKelamin": "string",
-      "golDarah": "string",
-      "alamat": "string",
-      "rt": "string",
-      "rw": "string",
-      "kel": "string",
-      "desa": "string",
-      "kecamatan": "string",
-      "kabupaten": "string",
-      "provinsi": "string",
-      "agama": "string",
-      "statusPekerjaan": "string",
-      "statusPerkawinan": "string",
-      "pekerjaan": "string",
-      "kewarganegaraan": "string",
-      "berlakuHingga": "date",
-      "kodeBank": "string",
-      "noRekening": "string"
-    }
-    ```
-- **Response**:
-    - **200 OK**:
-    ```json
-    {
-      "status": "success",
-      "message": "Profile updated successfully",
-      "data": {
-        "nik": "1234567890",
-        "nama": "John Doe",
-        "tempat_lahir": "City",
-        "tanggal_lahir": "1990-01-01",
-        "jenis_kelamin": "Male",
-        "agama": "Islam",
-        "status_pekerjaan": "Employed"
-      }
-    }
-    ```
-    - **400 Bad Request**: If validation or bank inquiry fails.
-    - **401 Unauthorized**: If the token is invalid or expired.
+- **Deskripsi**: Logout user dan mencabut token.
+- **Auth**: ✅ JWT
 
 ---
 
-## Response Codes
+### PUT `/update-profile`
 
-- **200 OK**: Request was successful.
-- **201 Created**: Resource successfully created.
-- **400 Bad Request**: Invalid input or request data.
-- **401 Unauthorized**: Invalid or missing authentication token.
-- **422 Unprocessable Entity**: Validation failed.
-- **500 Internal Server Error**: Server encountered an error while processing the request.
+- **Deskripsi**: Memperbarui data profil user.
+- **Auth**: ✅ JWT
 
 ---
 
+### GET `/get-profile`
 
+- **Deskripsi**: Mengambil data profil user.
+- **Auth**: ✅ JWT
 
-## Authorization Header Format
+---
 
-For every request that requires authentication, include the following in the header:
+## 🏦 Bank API Routes
 
-```http
-Authorization: Bearer <your_jwt_token>
-```
+### POST `/bank/inquiry`
 
-## Service 
+- **Deskripsi**: Melakukan proses inquiry bank.
+- **Auth**: ❌ Public *(Pastikan apakah ini memang terbuka atau harus dilindungi)*
 
+---
 
- #### **POST /api/wilayah/provinsi**
- - **Description**:  Retrieve a list of all provinces from the provinsi.json file.
-- **Authentication**: Requires a valid JWT token.
-- **Request Body**:
-    - **200 OK**:
-    ```json
-    {
-  "status": true,
-  "data": [ ... ]
-  }
-    ```
-- **Response**:
-    - **404 Not Found**:
-    ```json
-    {
-      "status": "success",
-      "message": "Profile updated successfully",
-      "data": {
-        "nik": "1234567890",
-        "nama": "John Doe",
-        "tempat_lahir": "City",
-        "tanggal_lahir": "1990-01-01",
-        "jenis_kelamin": "Male",
-        "agama": "Islam",
-        "status_pekerjaan": "Employed"
-      }
-    }
-    ```
-    - **400 Bad Request**: If validation or bank inquiry fails.
-    - **401 Unauthorized**: If the token is invalid or expired.
+## 🗺️ Wilayah (Region) Routes
 
-Description:
-Response:
-200 OK
+> Semua endpoint di bawah berada dalam prefix `/wilayah`
 
-{
-  "status": false,
-  "message": "Provinsi data not found."
-}
-📍 POST /api/wilayah/kabupaten
-Description: Retrieve a list of regencies (kabupaten) by province ID.
-Request Body:
-{
-  "id": "PROVINCE_ID"
-}
-Response:
-200 OK
-{
-  "status": true,
-  "data": [ ... ]
-}
-422 Unprocessable Entity
-{
-  "message": "The given data was invalid.",
-  "errors": {
-    "id": [
-      "The id field is required."
-    ]
-  }
-}
-404 Not Found
-{
-  "status": false,
-  "message": "Kabupaten data not found for the given ID."
-}
-📍 POST /api/wilayah/kecamatan
-Description: Retrieve a list of districts (kecamatan) by regency (kabupaten) ID.
-Request Body:
-{
-  "id": "REGENCY_ID"
-}
-Response: Same structure as the /kabupaten endpoint with adjusted messages.
-📍 POST /api/wilayah/kelurahan
-Description: Retrieve a list of sub-districts (kelurahan) by district (kecamatan) ID.
-Request Body:
-{
-  "id": "DISTRICT_ID"
-}
-Response: Same structure as the /kabupaten endpoint with adjusted messages.
-📍 POST /api/wilayah/kabupaten/all
-Description: Retrieve all available regency data from the kabupaten/ directory.
-Response:
-200 OK
-{
-  "status": true,
-  "data": [ ... ]
-}
-404 Not Found
-{
-  "status": false,
-  "message": "No kabupaten data found."
-}
+### POST `/wilayah/provinsi`
+
+- **Deskripsi**: Mengambil daftar provinsi.
+- **Auth**: ❌ Public
+
+---
+
+### POST `/wilayah/kabupaten`
+
+- **Deskripsi**: Mengambil daftar kabupaten berdasarkan provinsi.
+- **Auth**: ❌ Public
+
+---
+
+### POST `/wilayah/kecamatan`
+
+- **Deskripsi**: Mengambil daftar kecamatan berdasarkan kabupaten.
+- **Auth**: ❌ Public
+
+---
+
+### POST `/wilayah/kelurahan`
+
+- **Deskripsi**: Mengambil daftar kelurahan berdasarkan kecamatan.
+- **Auth**: ❌ Public
+
+---
+
+### POST `/wilayah/kabupaten/all`
+
+- **Deskripsi**: Mengambil semua data kabupaten tanpa filter.
+- **Auth**: ❌ Public
+
+---
+
+## ✅ Catatan Tambahan
+
+- Semua rute POST di atas mengharapkan **Content-Type: application/json**
+- Format **request body** dan **response** akan ditentukan melalui uji coba Postman
+
+---
+
