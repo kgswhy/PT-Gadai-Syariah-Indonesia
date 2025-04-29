@@ -16,7 +16,6 @@ This API uses **JWT (JSON Web Token)** for authentication. Every request that re
       "username": "string",
       "email": "string",
       "password": "string",
-      "nik": "string"  // Optional
     }
     ```
 - **Response**:
