@@ -1,100 +1,104 @@
 <?php
+
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Resources\ProfileResource;
 use App\Models\Profile;
-use Validator;
+use App\Services\BankApiService;
 use Illuminate\Support\Facades\Storage;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class ProfileController extends Controller
 {
-    public function getProfile(Request $request)
+    protected $bankApiService;
+
+    public function __construct(BankApiService $bankApiService)
     {
-        // Get the authenticated user
-        $user = $request->user(); // Retrieve the authenticated user
-
-        // Find the profile associated with the user
-        $profile = Profile::where('user_id', $user->id)->first();
-
-        // If the profile does not exist, return a message
-        if (!$profile) {
-            return response()->json(['message' => 'Profile not found'], 404);
-        }
-
-        // Return the profile data
-        return response()->json([
-            'message' => 'Profile retrieved successfully',
-            'profile' => $profile
-        ], 200);
+        $this->bankApiService = $bankApiService;
     }
-    public function updateProfile(Request $request)
+
+    public function updateProfile(UpdateProfileRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'nik' => 'required|unique:profiles,nik,' . $request->id,
-            'nama' => 'required|string|max:255',
-            'tempatLahir' => 'required|string|max:255',
-            'tanggalLahir' => 'required|date',
-            'jenisKelamin' => 'required|in:L,P',
-            'golDarah' => 'nullable|string|max:3',
-            'alamat' => 'required|string|max:255',
-            'rt' => 'required|string|max:3',
-            'rw' => 'required|string|max:3',
-            'kel' => 'required|string|max:255',
-            'desa' => 'required|string|max:255',
-            'kecamatan' => 'required|string|max:255',
-            'agama' => 'required|string|max:255',
-            'statusPekerjaan' => 'required|string|max:255',
-            'statusPerkawinan' => 'required|string|max:255',
-            'pekerjaan' => 'required|string|max:255',
-            'kewarganegaraan' => 'required|string|max:255',
-            'berlakuHingga' => 'required|date',
-            'gambarKtp' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'kodeBank' => 'nullable|string|max:255',
-            'noRekening' => 'nullable|string|max:255',
-        ]);
+        $user = JWTAuth::parseToken()->authenticate();
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+        $profile = Profile::firstOrNew(['user_id' => $user->id]);
 
-        // Find existing profile or create a new one
-        $profile = Profile::find($request->id);
-
-        if (!$profile) {
-            return response()->json(['message' => 'Profile not found.'], 404);
-        }
-
-        // Handle the KTP image upload
-        $imagePath = null;
-        if ($request->hasFile('gambarKtp')) {
-            $imagePath = $request->file('gambarKtp')->store('ktp_images', 'public');
-        }
-
-        // Update the profile
-        $profile->update([
+        $profile->fill([
             'nik' => $request->nik,
             'nama' => $request->nama,
-            'tempatLahir' => $request->tempatLahir,
-            'tanggalLahir' => $request->tanggalLahir,
-            'jenisKelamin' => $request->jenisKelamin,
-            'golDarah' => $request->golDarah,
+            'tempat_lahir' => $request->tempatLahir,
+            'tanggal_lahir' => $request->tanggalLahir,
+            'jenis_kelamin' => $request->jenisKelamin,
+            'gol_darah' => $request->golDarah,
             'alamat' => $request->alamat,
             'rt' => $request->rt,
             'rw' => $request->rw,
             'kel' => $request->kel,
-            'desa' => $request->desa,
+            'desa' => $request->kel, // Sementara desa = kel
             'kecamatan' => $request->kecamatan,
+            'kabupaten' => $request->kabupaten,
+            'provinsi' => $request->provinsi,
             'agama' => $request->agama,
-            'statusPekerjaan' => $request->statusPekerjaan,
-            'statusPerkawinan' => $request->statusPerkawinan,
+            'status_pekerjaan' => $request->statusPekerjaan,
+            'status_perkawinan' => $request->statusPerkawinan,
             'pekerjaan' => $request->pekerjaan,
             'kewarganegaraan' => $request->kewarganegaraan,
-            'berlakuHingga' => $request->berlakuHingga,
-            'gambarKtp' => $imagePath,
-            'kodeBank' => $request->kodeBank,
-            'noRekening' => $request->noRekening,
+            'berlaku_hingga' => $request->berlakuHingga,
+            'kode_bank' => $request->kodeBank,
+            'no_rekening' => $request->noRekening,
         ]);
 
-        return response()->json(['message' => 'Profile updated successfully', 'profile' => $profile], 200);
+        if ($request->filled('kodeBank') && $request->filled('noRekening')) {
+            $inquiry = $this->bankApiService->inquiryAccount($request->kodeBank, $request->noRekening);
+
+            if ($inquiry && isset($inquiry['account_name'])) {
+                $profile->account_name = $inquiry['account_name'];
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Gagal mengambil nama rekening dari bank.',
+                ], 400);
+            }
+        }
+
+        $profile->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Profile updated successfully',
+            'data' => new ProfileResource($profile),
+        ]);
+    }
+
+    public function getProfile()
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+
+            $profile = Profile::where('user_id', $user->id)->first();
+
+            if (!$profile) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Profile not found.',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Profile info retrieved successfully.',
+                'data' => [
+                    'user' => $user,
+                    'profile' => new ProfileResource($profile),
+                ],
+            ], 200);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Token invalid or expired.',
+                'error' => $th->getMessage(),
+            ], 401);
+        }
     }
 }

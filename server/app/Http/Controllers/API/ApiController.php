@@ -4,49 +4,62 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Profile;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class ApiController extends Controller
 {
     public function register(Request $request)
     {
         try {
-            $validateuser = Validator::make(
-                $request->all(),
-                [
-                    'name' => 'required',
-                    'email' => 'required|email|unique:users,email',
-                    'password' => 'required',
-                ]
-            );
+            // Validasi input
+            $validator = Validator::make($request->all(), [
+                'username' => 'required|string|max:255|unique:users,username',
+                'email' => 'required|email|unique:users,email',
+                'password' => 'required|min:6',
+            ]);
 
-            if ($validateuser->fails()) {
+            if ($validator->fails()) {
+                $errorMessages = implode(', ', $validator->errors()->all());
+
                 return response()->json([
                     'status' => false,
-                    'message' => 'validation error',
-                    'errors' => $validateuser->errors()
-                ], 401);
+                    'message' => 'Validation error: ' . $errorMessages,
+                ], 422);
             }
 
+            // Membuat user baru
             $user = User::create([
-                'name' => $request->name,
+                'username' => $request->username,
                 'email' => $request->email,
-                'password' => $request->password,
+                'password' => Hash::make($request->password),
             ]);
+
+            // Membuat profil untuk user
+            Profile::create([
+                'user_id' => $user->id,
+                'nik' => $request->nik ?? null,
+                'nama' => $request->username,
+            ]);
+
+            // Membuat token JWT
+            $token = JWTAuth::fromUser($user);
 
             return response()->json([
                 'status' => true,
-                'message' => 'User created Succesfully',
-                'token' => $user->createToken('API TOKEN')->plainTextToken
+                'message' => 'User created successfully',
+                'token' => $token,
             ], 200);
+
         } catch (\Throwable $th) {
-            // Return Json Response
             return response()->json([
                 'status' => false,
-                'message' => $th->getMessage(),
+                'message' => 'Error occurred during registration: ' . $th->getMessage(),
             ], 500);
         }
     }
@@ -54,68 +67,67 @@ class ApiController extends Controller
     public function login(Request $request)
     {
         try {
-            $validateuser = Validator::make(
-                $request->all(),
-                [
-                    'email' => 'required|email',
-                    'password' => 'required',
-                ]
-            );
+            $credentials = $request->only('username', 'password');
+            Log::info('Login attempt with credentials: ', $credentials);
 
-            if ($validateuser->fails()) {
+            // Validasi kredensial
+            $validator = Validator::make($credentials, [
+                'username' => 'required|string',
+                'password' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                $errorMessages = implode(', ', $validator->errors()->all());
+
                 return response()->json([
                     'status' => false,
-                    'message' => 'validation error',
-                    'errors' => $validateuser->errors()
-                ], 401);
+                    'message' => 'Validation error: ' . $errorMessages,
+                ], 422);
             }
 
-            if (!Auth::attempt(($request->only(['email', 'password'])))) {
+            // Set expiration token manual
+            $expiration = Carbon::now()->addMinutes(60)->timestamp;
+
+            $token = JWTAuth::attempt($credentials, ['exp' => $expiration]);
+
+            if (!$token) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Something went really wrong!',
+                    'message' => 'Invalid username or password',
                 ], 401);
             }
-
-            $user = User::where('email', $request->email)->first();
 
             return response()->json([
                 'status' => true,
-                'message' => 'Succesfully login',
-                'token' => $user->createToken('API TOKEN')->plainTextToken
+                'message' => 'Login successful',
+                'token' => $token,
             ], 200);
+
         } catch (\Throwable $th) {
-            // Return Json Response
+            Log::error('Login error: ', ['error' => $th->getMessage()]);
+
             return response()->json([
                 'status' => false,
-                'message' => $th->getMessage(),
+                'message' => 'Error occurred during login: ' . $th->getMessage(),
             ], 500);
         }
     }
 
-    public function profile()
+    public function logout(Request $request)
     {
-        // Profile Detail 
-        $userData = auth()->user();
+        try {
+            JWTAuth::invalidate(JWTAuth::getToken());
 
-        // Return Json Response
-        return response()->json([
-            'status' => true,
-            'message' => 'Profile Info',
-            'data' => $userData,
-            'id' => auth()->user()->id,
-        ], 200);
-    }
+            return response()->json([
+                'status' => true,
+                'message' => 'Successfully logged out',
+            ], 200);
 
-    public function logout()
-    {
-        auth()->user()->tokens()->delete();
-
-        // Return Json Response
-        return response()->json([
-            'status' => true,
-            'message' => 'Successfully Logout',
-            'data' => []
-        ], 200);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to logout: ' . $th->getMessage(),
+            ], 500);
+        }
     }
 }

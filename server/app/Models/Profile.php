@@ -20,6 +20,8 @@ class Profile extends Model
         'kel',
         'desa',
         'kecamatan',
+        'kabupaten',
+        'provinsi',
         'agama',
         'statusPekerjaan',
         'statusPerkawinan',

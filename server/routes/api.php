@@ -1,27 +1,29 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
 use App\Http\Controllers\API\ApiController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Api\WilayahController;
 
+// Public routes
 Route::post('register', [ApiController::class, 'register']);
-Route::post('login', [ApiController::class, 'login']);
+Route::post('login', [ApiController::class, 'login'])->name('login');
 
-Route::group([
-    "middleware" => ["auth:sanctum"]
-], function () {
-    //profile page
-    Route::get('profile', [ApiController::class, 'profile']);
-    //logout
-    Route::get('logout', [ApiController::class, 'logout']);
-    Route::middleware('auth:api')->put('/update-profile', [ProfileController::class, 'updateProfile']);
-    Route::get('profile', [ProfileController::class, 'getProfile']);  // New route to get profile
+// Protected routes (require JWT authentication)
+Route::middleware('auth.jwt')->group(function () {
+    // Logout route
+    Route::post('logout', [ApiController::class, 'logout']);
 
-
+    // Profile routes
+    Route::put('update-profile', [ProfileController::class, 'updateProfile']);
+    Route::get('get-profile', [ProfileController::class, 'getProfile']);
 });
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// Wilayah (Region) routes
+Route::prefix('wilayah')->group(function () {
+    Route::post('provinsi', [WilayahController::class, 'provinsiIndex']);
+    Route::post('kabupaten', [WilayahController::class, 'kabupatenIndex']);
+    Route::post('kecamatan', [WilayahController::class, 'kecamatanIndex']);
+    Route::post('kelurahan', [WilayahController::class, 'kelurahanIndex']);
+    Route::post('kabupaten/all', [WilayahController::class, 'allKabupaten']);
+});
