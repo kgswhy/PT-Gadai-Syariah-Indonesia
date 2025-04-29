@@ -91,25 +91,25 @@ class ProfileController extends Controller
 
         if ($request->filled('gambarKtp')) {
             $base64Image = $request->gambarKtp;
-
-            // Validasi format base64 gambar
             if (preg_match('/^data:image\/(\w+);base64,/', $base64Image, $type)) {
+                $data = substr($base64Image, strpos($base64Image, ',') + 1);
                 $type = strtolower($type[1]); // jpg, png, gif, etc.
 
                 if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
-                    return response()->json(['status' => 'error', 'message' => 'Unsupported image format.'], 400);
+                    return response()->json(['status' => 'error', 'message' => 'Format gambar tidak didukung.'], 400);
                 }
 
-                // Opsional: validasi apakah base64 bisa didecode (bukan disimpan, hanya cek validitas)
-                $data = substr($base64Image, strpos($base64Image, ',') + 1);
-                if (base64_decode($data, true) === false) {
-                    return response()->json(['status' => 'error', 'message' => 'Invalid base64 encoding.'], 400);
+                $data = base64_decode($data);
+                if ($data === false) {
+                    return response()->json(['status' => 'error', 'message' => 'Base64 decoding gagal.'], 400);
                 }
 
-                // Simpan base64-nya ke database
-                $profile->gambarKtp = $base64Image;
+                $fileName = 'ktp_' . $user->id . '_' . time() . '.' . $type;
+                $filePath = 'public/ktp/' . $fileName;
+                Storage::put($filePath, $data);
+                $profile->gambarKtp = Storage::url($filePath);
             } else {
-                return response()->json(['status' => 'error', 'message' => 'Invalid base64 image format.'], 400);
+                return response()->json(['status' => 'error', 'message' => 'Format gambar base64 tidak valid.'], 400);
             }
         }
 
@@ -151,6 +151,27 @@ class ProfileController extends Controller
                 ], 404);
             }
 
+            // Periksa apakah gambarKtp memiliki path
+            if ($profile->gambarKtp) {
+                // Dapatkan path relatif dari URL
+                $relativePath = str_replace('/storage/', '', $profile->gambarKtp);
+                $fullPath = storage_path('app/public/' . $relativePath);
+
+                // Periksa apakah file ada
+                if (file_exists($fullPath)) {
+                    // Dapatkan tipe MIME file
+                    $mimeType = mime_content_type($fullPath);
+                    // Baca konten file
+                    $imageData = file_get_contents($fullPath);
+                    // Encode ke base64 dan setel ke atribut gambarKtp
+                    $profile->gambarKtp = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                } else {
+                    $profile->gambarKtp = null;
+                }
+            } else {
+                $profile->gambarKtp = null;
+            }
+
             return response()->json([
                 'status' => true,
                 'message' => 'Profile info retrieved successfully.',
@@ -167,4 +188,6 @@ class ProfileController extends Controller
             ], 401);
         }
     }
+
+
 }

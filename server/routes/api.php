@@ -11,7 +11,7 @@ Route::post('register', [ApiController::class, 'register']);
 Route::post('login', [ApiController::class, 'login'])->name('login');
 
 // Protected routes (require JWT authentication)
-Route::middleware('auth.jwt')->group(function () {
+Route::middleware(middleware: 'auth.jwt')->group(function () {
     // Logout route
     Route::post('logout', [ApiController::class, 'logout']);
 
